@@ -8,3 +8,5 @@ fastapi
 uvicorn
 gradio_client
 pandas
+requests
+tomli; python_version < "3.11"

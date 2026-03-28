@@ -128,6 +128,12 @@ ENV/
 env.bak/
 venv.bak/
 
+# LLM Provider Configuration
+config.toml
+
+# OntoChat config (contains API keys)
+config.toml
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -161,3 +167,5 @@ cython_debug/
 
 # flagging folder
 flagged/
+# Gradio generated files
+.gradio/

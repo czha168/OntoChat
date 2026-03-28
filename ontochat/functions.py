@@ -1,12 +1,15 @@
+"""
+Functions module for OntoChat.
+
+Handles user interactions and story generation using configuration-based LLM provider access.
+"""
 import json
 from ontochat.chatbot import chat_completion, build_messages
-from ontochat.analysis import compute_embeddings, agglomerative_clustering, llm_cq_clustering
-from ontochat.verbaliser import verbalise_ontology
+from ontochat.config_loader import load_config, ConfigurationError
 import gradio as gr
 
-openai_api_key = None
 
-current_preidentified_prompts = []
+# Prompt templates for user story elicitation
 current_preidentified = [
     """The ontology's domain is **[DOMAIN]**.
 
@@ -104,25 +107,16 @@ current_preidentified = [
     5. The language is *[CONCISE & PRECISE / CREATIVE & DETAILED]*.
     6. The final answer is structured as *[BULLET POINTS / A DETAILED PARAGRAPH / TAXONOMY-LIKE HIERARCHY]*.""",
 ]
-    
-def set_openai_api_key(api_key: str):
-    global openai_api_key
-    # Strip any leading or trailing spaces
-    api_key = api_key.strip()
-    
-    # Check if the API key contains any spaces or starts with "sk-"
-    if " " in api_key or not api_key.startswith("sk-"):
-        return "Invalid API key format. Please ensure the key does not contain spaces and is a valid OpenAI API key."
-    
-    # Set the API key if the format is valid
-    openai_api_key = api_key
-    return "API key has been set! Now you can chat with the chatbot. Enjoy :)"
 
-def check_api_key():
-    if openai_api_key is None:
-        raise ValueError("OpenAI API key is not set. Please set it using the 'Set API Key' button.")
 
 def user_story_generator(message, history):
+    """
+    Generate user story responses using the configured LLM provider.
+    Uses config file instead of global API key.
+    """
+    # Load configuration
+    config = load_config()
+    
     instructions = [
         {
             "role": "assistant",
@@ -168,83 +162,18 @@ def user_story_generator(message, history):
             )
         }
     ]
+    
     messages = build_messages(history)
     messages.append({"role": "user", "content": message})
 
-    bot_message = chat_completion(openai_api_key, instructions + messages)
+    response = chat_completion(config.provider, instructions + messages)
 
     history.append({"role": "user", "content": message})
-    history.append({"role": "assistant", "content": bot_message})
+    history.append({"role": "assistant", "content": response.content})
 
     return history, ""
 
+
 def load_example(selection): 
+    """Load an example prompt template."""
     return current_preidentified[selection]
-
-# def cq_generator(message, history):
-#     check_api_key()
-#     instructions = [{
-#         "role": "assistant",
-#         "content": "You are a conversational ontology engineering assistant."
-#     }, {
-#         "role": "user",
-#         "content": "Here are instructions for you on how to generate high-quality competency questions. First, here "
-#                    "are some good examples of competency questions generated from example data. Who performs the song? "
-#                    "from the data Yesterday was performed by Armando Rocca, When (what year) was the building built? "
-#                    "from the data The Church was built in 1619, In which context is the building located? from the "
-#                    "data The Church is located in a periurban context. Second, how to make them less complex. Take the "
-#                    "generated competency questions and check if any of them can be divided into multiple questions. If "
-#                    "they do, split the competency question into multiple competency questions. If it does not, leave "
-#                    "the competency question as it is. For example, the competency question Who wrote The Hobbit and in "
-#                    "what year was the book written? must be split into two competency questions: Who wrote the book? "
-#                    "and In what year was the book written?. Another example is the competency question, When was the "
-#                    "person born?. This competency question cannot be divided into multiple questions. Third, how to "
-#                    "remove real entities to abstract them. Take the competency questions and check if they contain "
-#                    "real-world entities, like Freddy Mercury or 1837. If they do, change those real-world entities "
-#                    "from these competency questions to more general concepts. For example, the competency question "
-#                    "Which is the author of Harry Potter? should be changed to Which is the author of the book?. "
-#                    "Similarly, the competency question Who wrote the book in 2018? should be changed to Who wrote the "
-#                    "book, and in what year was the book written?"
-#     }]
-#     messages = build_messages(history)
-#     messages.append({
-#         "role": "user",
-#         "content": message
-#     })
-#     bot_message = chat_completion(openai_api_key, instructions + messages)
-#     history.append([message, bot_message])
-#     return bot_message, history, ""
-
-# def load_example_user_story():
-#     with open("data/Linka#1_MusicKnowledge.md", "r") as f:
-#         return f.read()
-
-# def clustering_generator(cqs, cluster_method, n_clusters):
-#     check_api_key()
-#     if n_clusters:
-#         n_clusters = int(n_clusters)
-
-#     cqs, cq_embeddings = compute_embeddings(cqs)
-
-#     if cluster_method == "Agglomerative clustering":
-#         cq_clusters, cluster_image = agglomerative_clustering(cqs, cq_embeddings, n_clusters)
-#     else:  # cluster_method == "LLM clustering"
-#         cq_clusters, cluster_image = llm_cq_clustering(cqs, n_clusters, openai_api_key)
-
-#     return cluster_image, json.dumps(cq_clusters, indent=4)
-
-# def ontology_testing(ontology_file, ontology_desc, cqs):
-#     check_api_key()
-#     verbalisation = verbalise_ontology(ontology_file, ontology_desc, "")
-#     messages = [{
-#         "role": "system",
-#         "content": "Please (1) provide a description of the ontology uploaded to provide basic information and "
-#                    "additional context, (2) give the competency questions (CQs) that you want to test with."
-#     }, {
-#         "role": "user",
-#         "content": verbalisation + "\n" + f"Given the above ontology, please label each competency question: {cqs} to "
-#                                           f"determine whether it is addressed properly or not. Format your response in"
-#                                           f" ['yes': 'CQ1', 'no': 'CQ2', ...]."
-#     }]
-#     bot_message = chat_completion(openai_api_key, messages)
-#     return bot_message

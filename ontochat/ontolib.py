@@ -4,9 +4,12 @@ generating documentation, extracting competency questions, and preliminarly
 testing an ontology via competency questions.
 """
 import re
-import config
+from typing import Optional
+
 from openai import OpenAI
 from tqdm import tqdm
+
+from ontochat.config_loader import ProviderConfig, get_generation_config, load_config
 
 cqe_prompt_a = "You are asked to provide a comprehensive list of competency "\
                "questions describing all the possible requirements that can be "\
@@ -24,21 +27,24 @@ cqt_prompt_b = "You are asked to infer if the ontology described before can "\
 class ChatInterface:
 
     def __init__(self,
-                 api_key: str,
-                 model_name: str = config.DEFAULT_MODEL,
-                 sampling_seed: int = config.DEFAULT_SEED,
-                 temperature: int = config.DEFAULT_TEMPERATURE):
-        # Save client configuration for all calls
-        self.client = OpenAI(api_key=api_key)
-        self.model_name = model_name
-        self.sampling_seed = sampling_seed
-        self.temperature = temperature
+                 provider_config: Optional[ProviderConfig] = None,
+                 model_name: Optional[str] = None):
+        config = load_config()
+        self.provider_config = provider_config or config.provider
+        self.model_name = model_name or self.provider_config.default_model
+        
+        gen_config = get_generation_config()
+        self.sampling_seed = gen_config.seed
+        self.temperature = gen_config.temperature
+        
+        self.client = OpenAI(
+            api_key=self.provider_config.api_key or "dummy-key",
+            base_url=self.provider_config.base_url
+        )
 
     def chat_completion(self, messages, **kwargs):
-
-        model = kwargs["model"] if "model" in kwargs else self.model_name
-        temperature = kwargs["temperature"] if "temperature" in kwargs \
-            else self.temperature  # this do not alter the class defaults
+        model = kwargs.get("model", self.model_name)
+        temperature = kwargs.get("temperature", self.temperature)
 
         completion = self.client.chat.completions.create(
             model=model,
@@ -78,7 +84,7 @@ def extract_competency_questions(onto_verbalisation: str,
     ]
 
     competency_questions = chat_interface.chat_completion(
-        conversation_history, model="gpt-3.5-turbo-16k")
+        conversation_history)
 
     return competency_questions
 
@@ -117,11 +123,15 @@ def test_competency_questions(onto_verbalisation: str,
             {"role": "system", "content": "You are an ontology engineer."},
             {"role": "user", "content": full_prompt}
         ]
-        outcome = chat_interface.chat_completion(
-            conversation_history, model="gpt-3.5-turbo-16k")
+        outcome = chat_interface.chat_completion(conversation_history)
+        if outcome is None:
+            cq_test_dict[cq] = ("Error", "No response from model")
+            continue
         match = re.search(r"^(Yes|No)(.*)", outcome)
-        explanation = match.group(2) if match is not None else None
-        cq_test_dict[cq] = (match.group(1), explanation)
+        if match is not None:
+            cq_test_dict[cq] = (match.group(1), match.group(2))
+        else:
+            cq_test_dict[cq] = ("Error", f"Unexpected response: {outcome}")
 
     return cq_test_dict
 

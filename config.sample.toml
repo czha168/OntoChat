@@ -1,0 +1,62 @@
+# OntoChat LLM Provider Configuration Sample
+# Copy this file to config.toml and customize for your environment
+
+# -----------------------------------------------------------------------------
+# Provider Configuration
+# -----------------------------------------------------------------------------
+
+[provider]
+# Supported providers: "openai", "ollama", "vllm", "groq", "mistral", "custom"
+name = "openai"
+
+# API key (use environment variable or hardcode for local development)
+# For OpenAI, use ${OPENAI_API_KEY}
+# For other providers, use their respective env vars
+api_key = "${OPENAI_API_KEY}"
+
+# Base URL (optional)
+# - OpenAI: leave as commented to use default
+# - Ollama: http://localhost:11434
+# - vLLM: http://localhost:8000
+# - Groq: https://api.groq.com/openai/v1
+#base_url = "https://api.openai.com/v1"
+
+# Default model for chat completions
+default_model = "gpt-4o"
+
+# -----------------------------------------------------------------------------
+# Generation Parameters
+# -----------------------------------------------------------------------------
+[generation]
+# Temperature for sampling (0 = deterministic, 1 = creative)
+temperature = 0.0
+
+# Random seed for reproducibility
+seed = 1234
+
+# -----------------------------------------------------------------------------
+# Alternative Provider Examples (uncomment to use)
+# -----------------------------------------------------------------------------
+# [provider.ollama]
+# name = "ollama"
+# base_url = "http://localhost:11434"
+# api_key = "ollama"  # Ollama doesn't require an API key
+# default_model = "llama3.2"
+
+# [provider.vllm]
+# name = "vllm"
+# base_url = "http://localhost:8000/v1"
+# api_key = "dummy"  # vLLM may not require an API key
+# default_model = "meta-llama/Llama-3.1-8B-Instruct"
+
+# [provider.groq]
+# name = "groq"
+# api_key = "${GROQ_API_KEY}"
+# base_url = "https://api.groq.com/openai/v1"
+# default_model = "mixtral-8x7b-32768"
+
+# [provider.mistral]
+# name = "mistral"
+# api_key = "${MISTRAL_API_KEY}"
+# base_url = "https://api.mistral.ai/v1"
+# default_model = "mistral-large-latest"
